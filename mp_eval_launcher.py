@@ -1,7 +1,8 @@
-import numpy as np
 import subprocess
 import os
 import argparse
+import shlex
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--wandb_name", type=str, help="Wandb user name.")
@@ -27,14 +28,34 @@ parser.add_argument("--run_per_device", type=int, default=1, help="Number of run
 parser.add_argument("--device_per_run", type=int, default=0, help="Number of GPUs for each run.")
 parser.add_argument("--gpu_masks", type=int, nargs="+", help="Which devices to run on.")
 parser.add_argument("--skip", type=int, default=0, help="Skip the specified number of experiments in the beginning.")
+parser.add_argument("--dry_run", action="store_true",
+                    help="Print every generated child command without starting it.")
 args = parser.parse_args()
 
-python_dir = "python3"
+python_dir = sys.executable
+
+
+def wait_for_processes(running_processes):
+    failures = []
+    for process in running_processes:
+        return_code = process.wait()
+        if return_code != 0:
+            failures.append((return_code, process.args))
+    if failures:
+        details = "\n".join(
+            f"exit {return_code}: {shlex.join(command)}" for return_code, command in failures
+        )
+        raise RuntimeError(f"One or more evaluation jobs failed:\n{details}")
+
 
 counter = 0
 processes = []
 for strategy in args.strategies:
-    for i, seed in enumerate(np.linspace(1234, 9999999, num=args.num_runs, dtype=int)):
+    if args.num_runs == 1:
+        seeds = [1234]
+    else:
+        seeds = [1234 + (9999999 - 1234) * i // (args.num_runs - 1) for i in range(args.num_runs)]
+    for i, seed in enumerate(seeds):
         command = [python_dir, "point_evaluation.py",
                    "--seed", str(seed),
                    "--wandb_name", args.wandb_name,
@@ -54,7 +75,9 @@ for strategy in args.strategies:
                    ]
         if counter >= args.skip:
             new_env = os.environ.copy()
-            if args.device_per_run > 0:
+            if args.dry_run:
+                print(shlex.join(command))
+            elif args.device_per_run > 0:
                 num_parallel_runs = len(args.gpu_masks) // args.device_per_run
                 assert num_parallel_runs > 0
                 new_env["CUDA_VISIBLE_DEVICES"] = \
@@ -62,18 +85,15 @@ for strategy in args.strategies:
                              range(args.device_per_run)])[:-1]
                 processes.append(subprocess.Popen(command, env=new_env))
                 if len(processes) == num_parallel_runs:
-                    for p in processes:
-                        p.wait()
+                    wait_for_processes(processes)
                     processes = []
             else:
                 new_env["CUDA_VISIBLE_DEVICES"] = str(
                     args.gpu_masks[(counter % (len(args.gpu_masks) * args.run_per_device)) // args.run_per_device])
                 processes.append(subprocess.Popen(command, env=new_env))
                 if len(processes) == len(args.gpu_masks) * args.run_per_device:
-                    for p in processes:
-                        p.wait()
+                    wait_for_processes(processes)
                     processes = []
         counter += 1
 
-for p in processes:
-    p.wait()
+wait_for_processes(processes)
