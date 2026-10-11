@@ -1,4 +1,4 @@
-# Fig. 1a reproduction (Magnus)
+# Fig. 1a reproduction 
 
 CIFAR-10, CLIP ViT-B/32 + FlexMatch, batch size 1000, 10 rounds, 6 strategies x 4 seeds
 (1234, 3334155, 6667077, 9999999). GALAXY and BAIT not run. Ablation: ../ablation_randinit_magnus/.
