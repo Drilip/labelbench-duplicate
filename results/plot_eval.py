@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument("--colors", nargs="+", help="Color for plots.")
     parser.add_argument("--smoothing", choices=["none", "max", "mov_avg"])
     parser.add_argument("--y_lim", type=float, nargs="+", default=None)
+    parser.add_argument("--output_suffix", default="",
+                        help="Optional suffix added to the output filename, for example '_raw'.")
     args = parser.parse_args()
 
     if args.smoothing == "none":
@@ -68,7 +70,11 @@ if __name__ == "__main__":
         ax.legend(legend_handles, [strategy.upper() for strategy in args.strategies])
         plt.ylim(y_lim)
         ax.grid(True, linestyle="--")
-        plt.savefig("plots/eval_%s_%d_%s_%s_%s_%s_%s.pdf" % (
-            args.dataset, args.eval_batch_size, args.classifier_model, args.eval_classifier_model, args.trainer_config,
-            args.eval_trainer_config, metric.replace(" ", "_")))
+        plt.savefig(
+            "plots/eval_%s_%d_%s_%s_%s_%s_%s%s.pdf" % (
+                args.dataset, args.eval_batch_size, args.classifier_model, args.eval_classifier_model,
+                args.trainer_config, args.eval_trainer_config, metric.replace(" ", "_"), args.output_suffix),
+            bbox_inches="tight",
+            pad_inches=0.05,
+        )
         plt.show()
