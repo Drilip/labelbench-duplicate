@@ -47,7 +47,10 @@ def get_labels(dataset, data_dir, name, split):
 
     if os.path.exists(f'{folder_name}_{name}_{split}.pt'):
         print(f"Loading labels from {folder_name}_{name}_{split}.pt")
-        labels = torch.load(f'{folder_name}_{name}_{split}.pt')
+        # This cache is written by LabelBench below with pickle protocol 4.
+        # PyTorch 2.6+ defaults to the restricted weights-only loader, which
+        # cannot read that format, so explicitly use the trusted local cache.
+        labels = torch.load(f'{folder_name}_{name}_{split}.pt', weights_only=False)
     else:
         loader = DataLoader(dataset, batch_size=500, shuffle=False, num_workers=40, drop_last=False)
         labels = []
