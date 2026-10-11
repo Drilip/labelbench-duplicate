@@ -50,20 +50,22 @@ if __name__ == "__main__":
     for metric in args.metrics:
         y_lim = args.y_lim
         fig, ax = plt.subplots(1)
+        legend_handles = []
         for strategy, color in zip(args.strategies, args.colors):
             runs = alg_dict[strategy]
             num_runs = float(len(runs))
             perfs = np.array([smooth_fn(np.array(run[metric])) for run in runs])
             perf_mean = np.mean(perfs, axis=0)
             perf_ste = np.std(perfs, ddof=1, axis=0) / np.sqrt(num_runs)
-            ax.plot(num_labeled, perf_mean, linewidth=3, color=color)
+            line, = ax.plot(num_labeled, perf_mean, linewidth=3, color=color)
+            legend_handles.append(line)
             ax.fill_between(num_labeled, perf_mean - perf_ste, perf_mean + perf_ste, alpha=.3, color=color)
             if y_lim is None and strategy == "random":
                 y_lim = [perfs[0][0], None]
 
         plt.xlabel("Number of Labels")
         plt.ylabel(metric)
-        ax.legend([strategy.upper() for strategy in args.strategies])
+        ax.legend(legend_handles, [strategy.upper() for strategy in args.strategies])
         plt.ylim(y_lim)
         ax.grid(True, linestyle="--")
         plt.savefig("plots/eval_%s_%d_%s_%s_%s_%s_%s.pdf" % (
